@@ -14,4 +14,8 @@ class Undude {
             throw e
         }
 
+    fun <T> execute(u: Undoable<T>): T = this.execute(u.dude to u.undude)
+
 }
+
+class Undoable<T>(val dude: () -> T, val undude: () -> Unit)
