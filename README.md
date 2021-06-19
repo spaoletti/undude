@@ -1,4 +1,4 @@
-# Undude
+# The Undude
 
 A variation of the command pattern.
 
@@ -17,11 +17,9 @@ db.insert(response, file)
 
 If one of these steps fails you have to undo everything, but how can you have a proper atomic 
 transaction when neither the endpoint nor the filesystem nor the db give a s**t about you or anything
-else? You have to undo every single step manually, like this:
+in your immediate proximity? You have to undo every single step manually.
 
 ```
-// Declarations and blah blah
-
 try {
     response = anApi.doSomething()
 } catch (e: EverythingWentWrongException) {
@@ -39,14 +37,14 @@ try {
     db.insert(response, file)
 } catch (e: OhMyGodWhyException) {
     try { anApi.undoSomething(response.id) } catch (e: Throwable) { /* I want to go home */ }
-    try { fileSystem.delete(file) } catch (e: Throwable) { /* Take my life */ }
+    try { fileSystem.delete(file) } catch (e: Throwable) { /* OMG take my life */ }
     return
 }
 
 ```
 
 And now you feel miserable because your code sucks.  
-Here comes the Undude. With the Undude, you do this:
+Here comes the Undude.
 
 ```
 val u = Undude()
@@ -55,13 +53,16 @@ val file = u.execute( { fileSystem.write(response.id) }, { f -> fileSystem.delet
 u.execute( { db.insert(response, file) }, {} )
 ```
 
-The Undude takes care of undoing operation in reverse order as soon as one fails. This is 
-prettier. And now you are happy again. And if you make your methods return an `Undoable<T>` object, 
-with undo logic already enclosed in it, like this:
+Every Undude is a transaction. You give the Undude an action and a lambda that can udo that action.
+The Undude takes care of undoing operations in reverse order as soon as one fails. This is 
+prettier, isn't it? And now you are happy again. 
+
+You can also make your methods return `Undoable<T>` objects, with undo logic already enclosed in 
+it.
 
 ```
 class Api {
-    fun doSomething() = Undoable({ something() }, { r -> undoSomething(r.id) })
+    fun doSomethingUndoable() = Undoable({ doSomething() }, { r -> undoSomething(r.id) })
 }
 ```
 
@@ -69,9 +70,9 @@ Then the code becomes even cleaner:
 
 ```
 val u = Undude()
-val response = u.execute( anApi.doSomething() )
-val file = u.execute( fileSystem.write(response.id) )
-u.execute( db.insert(response, file) )
+val response = u.execute( anApi.doSomethingUndoable() )
+val file = u.execute( fileSystem.undoableWrite(response.id) )
+u.execute( db.undoableInsert(response, file) )
 ```
 
 This thing is bare bones, write me a line if you have a suggestion, I'll evolve it based on use
