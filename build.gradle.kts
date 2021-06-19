@@ -14,6 +14,8 @@ repositories {
 dependencies {
     implementation("junit:junit:4.13.1")
     testImplementation(kotlin("test-junit"))
+    testImplementation("com.nhaarman:mockito-kotlin:0.9.0")
+    testImplementation("org.mockito:mockito-inline:3.11.1")
 }
 
 tasks.test {

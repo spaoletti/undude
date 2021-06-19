@@ -2,20 +2,33 @@ package me.spaoletti
 
 class Undude {
 
-    private val undos = arrayListOf<() -> Unit>()
+    private val undos = arrayListOf<Undo<*>>()
 
-    fun <T> execute(undoableAction:  Pair<() -> T, () -> Unit>): T =
+    private class Undo<T>(val ret: T, private val undo: (ret: T) -> Unit) {
+        fun undo() = undo(ret)
+    }
+
+    fun <T> execute(action: () -> T, undo: (ret: T) -> Unit): T =
         try {
-            val ret = undoableAction.first()
-            undos.add(undoableAction.second)
+            val ret = action()
+            undos.add(Undo(ret, undo))
             ret
         } catch (e: Throwable) {
-            undos.asReversed().forEach { it() }
+            rollback()
             throw e
         }
 
-    fun <T> execute(u: Undoable<T>): T = this.execute(u.dude to u.undude)
+    fun <T> execute(undoableAction: Undoable<T>): T =
+        this.execute(undoableAction.action, undoableAction.undo)
+
+    fun rollback() = undos.asReversed().forEach {
+        try {
+            it.undo()
+        } catch (e: Throwable) {
+            println("Something wrong happened while undoing(${it.ret}): ${e.message}")
+        }
+    }
 
 }
 
-class Undoable<T>(val dude: () -> T, val undude: () -> Unit)
+class Undoable<T>(val action: () -> T, val undo: (ret: T) -> Unit)
