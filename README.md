@@ -54,8 +54,7 @@ u.execute( { db.insert(response, file) }, {} )
 ```
 
 Every Undude is a transaction. You give the Undude an action and a lambda that can undo that action.
-The Undude takes care of undoing operations in reverse order as soon as one fails. This is 
-prettier, isn't it? And now you are happy again. 
+The Undude takes care of undoing operations in reverse order as soon as one throws. And now you are happy again. 
 
 You can also make your methods return `Undoable<T>` objects, with undo logic already enclosed in 
 it.
@@ -74,6 +73,24 @@ val response = u.execute( anApi.doSomethingUndoable() )
 val file = u.execute( fileSystem.undoableWrite(response.id) )
 u.execute( db.undoableInsert(response, file) )
 ```
+
+The Undude rollbacks automatically when there is an exception, but you can also rollback manually at any point.
+
+```
+val u = Undude()
+val response = u.execute( anApi.doSomethingUndoable() )
+val file = u.execute( fileSystem.undoableWrite(response.id) )
+if (file.isNotPrettyEnough()) {
+    u.rollback()
+    return
+}
+val dbResponse = u.execute( db.undoableInsert(response, file) )
+if (dbResponse.isNotWhatIExpected())
+    u.rollback()
+```
+
+Coroutines are supported, so you can run suspending code inside your actions and undos. Keep in mind that every
+`execute` and `rollback` blocks the thread until completed.
 
 This thing is bare bones, write me a line if you have a suggestion, I'll evolve it based on use
 cases.
