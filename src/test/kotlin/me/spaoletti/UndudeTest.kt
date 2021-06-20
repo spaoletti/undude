@@ -4,6 +4,8 @@ import com.nhaarman.mockito_kotlin.any
 import com.nhaarman.mockito_kotlin.spy
 import com.nhaarman.mockito_kotlin.times
 import com.nhaarman.mockito_kotlin.verify
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -16,6 +18,8 @@ class UndudeTest {
         fun deleteSomething(id: Int) { println("$id is gone bye bye") }
         fun doSomethingWithNoReturn() {}
         fun undoSomethingWithNoArgs() {}
+        suspend fun insertSomethingSuspending(id: Int): Int { delay(1); return id }
+        suspend fun deleteSomethingSuspending(id: Int) { delay(1); println("$id is gone bye bye") }
     }
 
     private fun buildFakeClientSpy(): FakeClient = spy(FakeClient())
@@ -109,6 +113,36 @@ class UndudeTest {
         u.execute({ fakeClient.insertSomething(96) }, { throw FakeException("bonk") })
         u.execute({ fakeClient.insertSomething(44) }, { throw FakeException("ouch") })
         u.rollback()
+    }
+
+    @Test
+    fun should_execute_suspend_code_sequentially() {
+        val fakeClient = buildFakeClientSpy()
+        val u = Undude()
+        u.execute({ fakeClient.insertSomethingSuspending(11) }, { id -> fakeClient.deleteSomethingSuspending(id) })
+        u.execute({ fakeClient.insertSomethingSuspending(42) }, { id -> fakeClient.deleteSomethingSuspending(id) })
+        suppress { u.execute({ throw FakeException("zam") }, {}) }
+        runBlocking {
+            verify(fakeClient, times(1)).insertSomethingSuspending(11)
+            verify(fakeClient, times(1)).insertSomethingSuspending(42)
+            verify(fakeClient, times(1)).deleteSomethingSuspending(11)
+            verify(fakeClient, times(1)).deleteSomethingSuspending(42)
+        }
+    }
+
+    @Test
+    fun should_be_happy_with_both_suspending_and_blocking_code() {
+        val fakeClient = buildFakeClientSpy()
+        val u = Undude()
+        u.execute({ fakeClient.insertSomethingSuspending(11) }, { id -> fakeClient.deleteSomething(id) })
+        u.execute({ fakeClient.insertSomething(42) }, { id -> fakeClient.deleteSomethingSuspending(id) })
+        suppress { u.execute({ throw FakeException("whap") }, {}) }
+        verify(fakeClient, times(1)).insertSomething(42)
+        verify(fakeClient, times(1)).deleteSomething(11)
+        runBlocking {
+            verify(fakeClient, times(1)).insertSomethingSuspending(11)
+            verify(fakeClient, times(1)).deleteSomethingSuspending(42)
+        }
     }
 
 }
