@@ -53,7 +53,7 @@ val file = u.execute( { fileSystem.write(response.id) }, { f -> fileSystem.delet
 u.execute( { db.insert(response, file) }, {} )
 ```
 
-Every Undude is a transaction. You give the Undude an action and a lambda that can udo that action.
+Every Undude is a transaction. You give the Undude an action and a lambda that can undo that action.
 The Undude takes care of undoing operations in reverse order as soon as one fails. This is 
 prettier, isn't it? And now you are happy again. 
 
