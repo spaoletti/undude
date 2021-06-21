@@ -4,36 +4,23 @@ import kotlinx.coroutines.runBlocking
 
 class Undude {
 
-    private val undos = arrayListOf<Undo<*>>()
-
+    class UndudeException(val original: Exception, val undoException: Exception): Exception() {
+    }
+    
     private class Undo<T>(val ret: T, private val undo: suspend (ret: T) -> Unit) {
         suspend fun undo() = undo(ret)
     }
 
     fun <T> execute(action: suspend () -> T, undo: suspend (ret: T) -> Unit): T = runBlocking {
         try {
-            val ret = action()
-            undos.add(Undo(ret, undo))
-            ret
+            return action()
         } catch (e: Throwable) {
-            rollback()
+            try {
+                undo()
+            } catch (undoException: Throwable) {
+                throw UndudeException(e, undoException)
+            }
             throw e
         }
     }
-
-    fun <T> execute(undoableAction: Undoable<T>): T =
-        this.execute(undoableAction.action, undoableAction.undo)
-
-    fun rollback() = runBlocking {
-        undos.asReversed().forEach {
-            try {
-                it.undo()
-            } catch (e: Throwable) {
-                println("Something wrong happened while undoing(${it.ret}): ${e.message}")
-            }
-        }
-    }
-
 }
-
-class Undoable<T>(val action: suspend () -> T, val undo: suspend (ret: T) -> Unit)
