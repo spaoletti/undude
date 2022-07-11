@@ -1,6 +1,6 @@
 # The Undude
 
-A variation of the command pattern.
+A little variation of the command pattern.
 
 
 ## Description
@@ -92,10 +92,7 @@ if (dbResponse.isNotWhatIExpected())
 Coroutines are supported, so you can run suspending code inside your actions and undos. Keep in mind that every
 `execute` and `rollback` blocks the thread until completed.
 
-This thing is bare bones, write me a line if you have a suggestion, I'll evolve it based on use
-cases.
-
 
 ## Authors
 
-Simone Paoletti
+Me
